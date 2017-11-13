@@ -37,6 +37,7 @@ object AbstractCanalClient {
     context_format += "* Start : [{}] " + SEP
     context_format += "* End : [{}] " + SEP
     context_format += "****************************************************" + SEP
+
     row_format = SEP + "----------------> binlog[{}:{}] , name[{},{}] , eventType : {} , executeTime : {} , delay : {}ms" + SEP
     transaction_format = SEP + "================> binlog[{}:{}] , executeTime : {} , delay : {}ms" + SEP
   }
@@ -44,6 +45,9 @@ object AbstractCanalClient {
 }
 
 class AbstractCanalClient {
+  /**
+    * 是否在运行
+    */
   @volatile
   protected var running: Boolean = false
   protected var handler: Thread.UncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
@@ -55,7 +59,7 @@ class AbstractCanalClient {
   protected var connector: CanalConnector = null
   protected var destination: String = null
   //记录处理数据的条数
-  var records=0
+  var records = 0
 
 
   def this(destination: String) {
@@ -70,6 +74,7 @@ class AbstractCanalClient {
     this.connector = connector
   }
 
+  //canal 客户端启动
   protected def start {
     Assert.notNull(connector, "connector is null")
     thread = new Thread(new Runnable() {
@@ -82,6 +87,7 @@ class AbstractCanalClient {
     running = true
   }
 
+  //停止canal客户端
   protected def stop {
     if (!running) {
       return
@@ -99,6 +105,7 @@ class AbstractCanalClient {
     MDC.remove("destination")
   }
 
+  //开始处理binlog event
   protected def process {
     val batchSize: Int = 5 * 1024
 
@@ -112,6 +119,7 @@ class AbstractCanalClient {
           val batchId: Long = message.getId
           val size: Int = message.getEntries.size
           if (batchId == -1 || size == 0) {
+            Thread.sleep(3000)
           }
           else {
             printSummary(message, batchId, size)
@@ -158,13 +166,13 @@ class AbstractCanalClient {
 
 
     for (entry <- entrys) {
-      var isContinue=true
-      var isContinue2=true
+      var isContinue = true
+      var isContinue2 = true
 
       val executeTime: Long = entry.getHeader.getExecuteTime
       val delayTime: Long = new Date().getTime - executeTime
       if (
-        (entry.getEntryType eq EntryType.TRANSACTIONBEGIN )
+        (entry.getEntryType eq EntryType.TRANSACTIONBEGIN)
           || (entry.getEntryType eq EntryType.TRANSACTIONEND)
       ) {
         if (entry.getEntryType eq EntryType.TRANSACTIONBEGIN) {
@@ -194,11 +202,11 @@ class AbstractCanalClient {
           //AbstractCanalClient.logger.info(" END ----> transaction id: {}", end.getTransactionId)
           //AbstractCanalClient.logger.info(AbstractCanalClient.transaction_format, Array[AnyRef](entry.getHeader.getLogfileName, String.valueOf(entry.getHeader.getLogfileOffset), String.valueOf(entry.getHeader.getExecuteTime), String.valueOf(delayTime)))
         }
-        isContinue=false
+        isContinue = false
       }
 
       if ((entry.getEntryType eq EntryType.ROWDATA)
-        &&isContinue) {
+        && isContinue) {
         var rowChage: CanalEntry.RowChange = null
         try {
           rowChage = RowChange.parseFrom(entry.getStoreValue)
@@ -211,20 +219,20 @@ class AbstractCanalClient {
         val eventType: CanalEntry.EventType = rowChage.getEventType
         //AbstractCanalClient.logger.info(AbstractCanalClient.row_format, Array[AnyRef](entry.getHeader.getLogfileName, String.valueOf(entry.getHeader.getLogfileOffset), entry.getHeader.getSchemaName, entry.getHeader.getTableName, eventType, String.valueOf(entry.getHeader.getExecuteTime), String.valueOf(delayTime)))
         if (
-          (eventType eq EventType.QUERY )
+          (eventType eq EventType.QUERY)
             || rowChage.getIsDdl) {
           //val simpleProducer = new SimpleKafkaProducer()
           //simpleProducer.publishMessage("canaltopic", rowChage.getSql)
           //AbstractCanalClient.logger.info(" sql is xiaoft ----> " + rowChage.getSql + AbstractCanalClient.SEP)
-          isContinue2=false
+          isContinue2 = false
         }
-        if (isContinue2){
+        if (isContinue2) {
           for (rowData <- rowChage.getRowDatasList) {
             if (eventType eq EventType.DELETE) {
               //AbstractCanalClient.logger.info("xiaosql delete")
               //val simpleProducer = new SimpleKafkaProducer()
               //simpleProducer.publishMessage("canaltopic", rowData.toString)
-              printColumn(rowData.getBeforeColumnsList,entry,rowChage)
+              printColumn(rowData.getBeforeColumnsList, entry, rowChage)
             }
             else if (eventType eq EventType.INSERT) {
               //AbstractCanalClient.logger.info("xiaosql insert")
@@ -235,11 +243,11 @@ class AbstractCanalClient {
               //AbstractCanalClient.logger.info("### entry.getHeader().getTableName():" + entry.getHeader.getTableName)
               //val simpleProducer =  new SimpleKafkaProducer()
               //simpleProducer.publishMessage("canaltopic", rowData.toString)
-              printColumn(rowData.getAfterColumnsList,entry,rowChage)
+              printColumn(rowData.getAfterColumnsList, entry, rowChage)
             }
             else {
               //AbstractCanalClient.logger.info("xiaosql else")
-              printColumn(rowData.getAfterColumnsList,entry,rowChage)
+              printColumn(rowData.getAfterColumnsList, entry, rowChage)
             }
           }
         }
@@ -249,23 +257,24 @@ class AbstractCanalClient {
     }
   }
 
-  protected def printColumn(columns: List[CanalEntry.Column],entry:CanalEntry.Entry,rowChage: CanalEntry.RowChange) {
+  //打印event信息,将指定表的inser信息发给kafka
+  protected def printColumn(columns: List[CanalEntry.Column], entry: CanalEntry.Entry, rowChage: CanalEntry.RowChange) {
     import scala.collection.JavaConversions._
     //builder 将binlog日志包装成希望的数据格式
     val builder: scala.collection.mutable.StringBuilder = new scala.collection.mutable.StringBuilder
 
-    builder.append("database="+ entry.getHeader.getSchemaName)
-    builder.append(",table="+ entry.getHeader.getTableName)
-    var eventType=rowChage.getEventType
+    builder.append("database=" + entry.getHeader.getSchemaName)
+    builder.append(",table=" + entry.getHeader.getTableName)
+    var eventType = rowChage.getEventType
 
-    builder.append(",eventType=" +eventType)
+    builder.append(",eventType=" + eventType)
 
     for (column <- columns) {
-      builder.append("\t"+column.getName + "=" + column.getValue)
+      builder.append("\t" + column.getName + "=" + column.getValue)
       builder.append(",type=" + column.getMysqlType)
       if (column.getUpdated) {
         builder.append(",update=" + column.getUpdated)
-      }else{
+      } else {
         builder.append(",update=false")
       }
     }
@@ -274,18 +283,17 @@ class AbstractCanalClient {
     //simpleProducer.publishMessage("canaltopic",builder.toString())
 
     //只处理table 名字包含loan_order 的binlog信息
+    if (entry.getHeader.getTableName.contains("loan_order")) {
 
-    if(entry.getHeader.getTableName.contains("loan_order")){
-
-      if(eventType.toString().equals("INSERT")){
-        records+=1
-        AbstractCanalClient.logger.info("---在处理第n条insert数据---"+records)
+      if (eventType.toString().equals("INSERT")) {
+        records += 1
+        AbstractCanalClient.logger.info("---在处理第n条insert数据---" + records)
       }
 
       //向kafka的test这个topic发送消息
-      simpleProducer.publishMessage("test",builder.toString())
+      simpleProducer.publishMessage("test", builder.toString())
 
-      AbstractCanalClient.logger.info(builder.toString+"\n\n\n")
+      AbstractCanalClient.logger.info(builder.toString + "\n\n\n")
     }
 
   }

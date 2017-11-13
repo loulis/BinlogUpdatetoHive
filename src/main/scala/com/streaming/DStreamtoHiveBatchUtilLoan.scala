@@ -5,7 +5,7 @@ import java.util.Arrays
 import com.test._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.{TableName, HBaseConfiguration}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
@@ -20,7 +20,6 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.JavaConverters._
 
 
-
 /**
   * Created by xiaoft on 16/6/17.
   * 此类,使用HCatalog Streaming Mutation API向hive2中进行实时增删改数据.
@@ -29,9 +28,9 @@ import scala.collection.JavaConverters._
   */
 object DStreamtoHiveBatchUtilLoan {
 
-  def toHive(dStream:DStream[String]):Unit = {
-    dStream.foreachRDD{
-      rdd=> rdd.foreachPartition {
+  def toHive(dStream: DStream[String]): Unit = {
+    dStream.foreachRDD {
+      rdd => rdd.foreachPartition {
         partitionOfRecords =>
 
           val metaStoreUri: String = "thrift://ip:2183"
@@ -39,7 +38,7 @@ object DStreamtoHiveBatchUtilLoan {
           val tableName: String = "bdl_rrxdebt_loan_order"
           val createPartitions: Boolean = false
           val EUROPE_FRANCE = Arrays.asList("2017", "02")
-          val hbaseTableName: String = tableName+"_identifier"
+          val hbaseTableName: String = tableName + "_identifier"
 
 
           var conf: HiveConf = null
@@ -55,13 +54,13 @@ object DStreamtoHiveBatchUtilLoan {
           metaStoreClient = testUtils.newMetaStoreClient(conf);
 
           //在RDD分区中创建hbase连接
-          val hConfig:Configuration = HBaseConfiguration.create()
+          val hConfig: Configuration = HBaseConfiguration.create()
           hConfig.set("hbase.zookeeper.quorum", "ip1,ip2,ip3");
           hConfig.setInt("hbase.zookeeper.property.clientPort", 2181);
 
-          val hbaseConnection :Connection= ConnectionFactory.createConnection(hConfig)
-          val hbaseTable :Table = hbaseConnection.getTable(TableName.valueOf(hbaseTableName))
-          var puts:ListBuffer[Put]= ListBuffer[Put]()
+          val hbaseConnection: Connection = ConnectionFactory.createConnection(hConfig)
+          val hbaseTable: Table = hbaseConnection.getTable(TableName.valueOf(hbaseTableName))
+          var puts: ListBuffer[Put] = ListBuffer[Put]()
 
           assertionFactory = new StreamingAssert.Factory(metaStoreClient, conf);
 
@@ -79,7 +78,7 @@ object DStreamtoHiveBatchUtilLoan {
           val transActionid = insertTransaction.getTransactionId();
           System.out.println("insertTransActionid===" + transActionid);
 
-          var row_id=0
+          var row_id = 0
 
           val mutatorFactory = new ReflectiveMutatorFactory(conf, classOf[LoanorderRecord], RECORD_ID_COLUMN,
             BUCKET_COLUMN_INDEXES);
@@ -92,19 +91,19 @@ object DStreamtoHiveBatchUtilLoan {
             .mutatorFactory(mutatorFactory)
             .build();
 
-          var updateArray=ArrayBuffer[LoanorderRecord]()
+          var updateArray = ArrayBuffer[LoanorderRecord]()
 
           try {
             partitionOfRecords.foreach(
               rdd => {
                 {
                   //println(rdd)
-                  if(rdd.toString.split(",").length>33){
-                    System.out.println("rdd_data "+rdd.toString.split(",")(0)+"==="+rdd.toString.split(",")(1))
+                  if (rdd.toString.split(",").length > 33) {
+                    System.out.println("rdd_data " + rdd.toString.split(",")(0) + "===" + rdd.toString.split(",")(1))
                     //解析记录
-                    var rddAry=rdd.toString.split(",")
-                    val eventType=rddAry(0)
-                    val asiaIndiaRecord1 =  bucketIdResolver.attachBucketIdToRecord(
+                    var rddAry = rdd.toString.split(",")
+                    val eventType = rddAry(0)
+                    val asiaIndiaRecord1 = bucketIdResolver.attachBucketIdToRecord(
                       new LoanorderRecord(
                         rddAry(1), rddAry(2), rddAry(3),
                         rddAry(4), rddAry(5), rddAry(6),
@@ -116,11 +115,11 @@ object DStreamtoHiveBatchUtilLoan {
                         rddAry(22), rddAry(23), rddAry(24),
                         rddAry(25), rddAry(26), rddAry(27),
                         rddAry(28), rddAry(29), rddAry(30),
-                        rddAry(31), rddAry(32),rddAry(33)
+                        rddAry(31), rddAry(32), rddAry(33)
                       )).asInstanceOf[LoanorderRecord]
 
                     if (eventType.toString().equals("INSERT")) {
-                      row_id+=1
+                      row_id += 1
                       insertCoordinator.insert(EUROPE_FRANCE, asiaIndiaRecord1)
                       //put ROW_ID to hbase
                       val put: Put = new Put(Bytes.toBytes(rddAry(1)))
@@ -133,14 +132,14 @@ object DStreamtoHiveBatchUtilLoan {
                     if (eventType.toString().equals("UPDATE")) {
                       println("\n -------update-------- \n")
                       //从hbase中获取RecordIdentifier
-                      val get:Get=new Get(Bytes.toBytes(rddAry(1).toString))
+                      val get: Get = new Get(Bytes.toBytes(rddAry(1).toString))
                       val result = hbaseTable.get(get)
                       val rowId = Bytes.toString(result.getValue(Bytes.toBytes("fl"), Bytes.toBytes("identifier")))
-                      val recordIdentifierAry=rowId.split("_")
+                      val recordIdentifierAry = rowId.split("_")
 
-                      println("Id"+rddAry(1).toString+"---rowId---"+rowId)
+                      println("Id" + rddAry(1).toString + "---rowId---" + rowId)
 
-                      updateArray+=new LoanorderRecord(
+                      updateArray += new LoanorderRecord(
                         rddAry(1), rddAry(2), rddAry(3),
                         rddAry(4), rddAry(5), rddAry(6),
                         rddAry(7), rddAry(8), rddAry(9),
@@ -151,7 +150,7 @@ object DStreamtoHiveBatchUtilLoan {
                         rddAry(22), rddAry(23), rddAry(24),
                         rddAry(25), rddAry(26), rddAry(27),
                         rddAry(28), rddAry(29), rddAry(30),
-                        rddAry(31), rddAry(32),rddAry(33),new RecordIdentifier(recordIdentifierAry(0).toLong, recordIdentifierAry(1).toInt, recordIdentifierAry(2).toLong)
+                        rddAry(31), rddAry(32), rddAry(33), new RecordIdentifier(recordIdentifierAry(0).toLong, recordIdentifierAry(1).toInt, recordIdentifierAry(2).toLong)
                       )
                     }
                   }
@@ -169,42 +168,44 @@ object DStreamtoHiveBatchUtilLoan {
             insertCoordinator.close()
             insertTransaction.commit()
             insertClient.close();
-            if(hbaseTable!=null){
-              hbaseTable.close()}
-            if(hbaseConnection!=null){
-              hbaseConnection.close()}
+            if (hbaseTable != null) {
+              hbaseTable.close()
+            }
+            if (hbaseConnection != null) {
+              hbaseConnection.close()
+            }
           }
 
-        //update操作在insert操作完成之后进行
-        val updateClient = new MutatorClientBuilder()
-          .addSinkTable(databaseName, tableName, createPartitions)
-          .metaStoreUri(metaStoreUri)
-          .build();
+          //update操作在insert操作完成之后进行
+          val updateClient = new MutatorClientBuilder()
+            .addSinkTable(databaseName, tableName, createPartitions)
+            .metaStoreUri(metaStoreUri)
+            .build();
           updateClient.connect();
 
-        val tables2 = updateClient.getTables();
-        val updateTransaction = updateClient.newTransaction();
-        updateTransaction.begin();
+          val tables2 = updateClient.getTables();
+          val updateTransaction = updateClient.newTransaction();
+          updateTransaction.begin();
 
-        val updateCoordinator = new MutatorCoordinatorBuilder()
-        .metaStoreUri(metaStoreUri)
-        .table(tables2.get(0))
-        .mutatorFactory(mutatorFactory)
-        .build();
-        // Sorting
-        val sortedUpdateArray=updateArray.sortBy(r => (r.rowId.getTransactionId, r.rowId.getRowId))
+          val updateCoordinator = new MutatorCoordinatorBuilder()
+            .metaStoreUri(metaStoreUri)
+            .table(tables2.get(0))
+            .mutatorFactory(mutatorFactory)
+            .build();
+          // Sorting
+          val sortedUpdateArray = updateArray.sortBy(r => (r.rowId.getTransactionId, r.rowId.getRowId))
 
-        for(r <- sortedUpdateArray){
-          println("\n----update--r-------\n"+r.toString)
-          updateCoordinator.update(EUROPE_FRANCE,r)
-        }
+          for (r <- sortedUpdateArray) {
+            println("\n----update--r-------\n" + r.toString)
+            updateCoordinator.update(EUROPE_FRANCE, r)
+          }
 
-        updateCoordinator.close();
-        updateTransaction.commit();
-        updateClient.close()
+          updateCoordinator.close();
+          updateTransaction.commit();
+          updateClient.close()
 
 
-}
-}
-}
+      }
+    }
+  }
 }

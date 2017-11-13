@@ -5,14 +5,16 @@ import com.alibaba.otter.canal.client.CanalConnector
 import com.alibaba.otter.canal.client.CanalConnectors
 import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.{LoggerFactory, Logger}
+
 /**
   * Created by xiaoft on 2016/12/27.
   */
 
-object SimpleCanalClient{
+object SimpleCanalClient {
   protected val logger: Logger = LoggerFactory.getLogger(classOf[SimpleCanalClient])
+
   def main(args: Array[String]) {
-    if (args.length!=2){
+    if (args.length != 2) {
       throw new RuntimeException("ip,destination must set")
     }
 
@@ -38,7 +40,7 @@ object SimpleCanalClient{
   }
 }
 
-class SimpleCanalClient (destination: String) extends AbstractCanalClient(destination: String) {
+class SimpleCanalClient(destination: String) extends AbstractCanalClient(destination: String) {
 
 
 }

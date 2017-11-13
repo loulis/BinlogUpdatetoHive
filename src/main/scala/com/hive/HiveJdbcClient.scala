@@ -40,7 +40,7 @@ object HiveJdbcClient {
     //System.out.println("Running: " + sql)
     //var res: ResultSet = stmt.executeQuery(sql)
     //if (res.next) {
-     // System.out.println(res.getString(1))
+    // System.out.println(res.getString(1))
     //}
 
 

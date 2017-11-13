@@ -33,13 +33,13 @@ object SimpleKafkaProducer {
 
 class SimpleKafkaProducer {
 
-    val props: Properties = new Properties
-    props.put("metadata.broker.list", "localhost:9092")
+  val props: Properties = new Properties
+  props.put("metadata.broker.list", "localhost:9092")
 
   props.put("serializer.class", "kafka.serializer.StringEncoder")
-    props.put("request.required.acks", "1")
-    val config: ProducerConfig = new ProducerConfig(props)
-    SimpleKafkaProducer.producer = new Producer[String, String](config)
+  props.put("request.required.acks", "1")
+  val config: ProducerConfig = new ProducerConfig(props)
+  SimpleKafkaProducer.producer = new Producer[String, String](config)
 
   /**
     * 根据topic和消息条数发送消息
@@ -59,7 +59,8 @@ class SimpleKafkaProducer {
           SimpleKafkaProducer.producer.send(data)
         }
         ({
-          i += 1; i - 1
+          i += 1;
+          i - 1
         })
       }
     }

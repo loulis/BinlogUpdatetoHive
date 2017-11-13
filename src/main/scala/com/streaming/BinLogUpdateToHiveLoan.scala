@@ -5,12 +5,14 @@ import org.apache.spark._
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka._
+
 /**
   * Created by xiaoft on 16/8/5.
   */
 
 object BinLogUpdateToHiveLoan {
-  var path="12"
+  var path = "12"
+
   def functionToCreateContext(checkpointDirectory: String): StreamingContext = {
     val sparkConf = new SparkConf().setAppName("test_BinLogUpdateToHive")
 
@@ -34,13 +36,12 @@ object BinLogUpdateToHiveLoan {
 
     //lines.print()
 
-    val sqls=lines.map(line=>
-    {
-      var database=""
-      var table=""
-      var evenType=""
+    val sqls = lines.map(line => {
+      var database = ""
+      var table = ""
+      var evenType = ""
 
-      val length=line.split("\t").length
+      val length = line.split("\t").length
       val builder = new scala.collection.mutable.StringBuilder
 
       /*
@@ -49,20 +50,20 @@ object BinLogUpdateToHiveLoan {
       id=1234566,type=bigint(20),update=true
       uuid=1111111111112222222,type=varchar(36),update=true
        */
-      if(length>=2){
-        database=line.split("\t")(0).split(",")(0).split("=")(1)
-        table=line.split("\t")(0).split(",")(1).split("=")(1)
-        evenType=line.split("\t")(0).split(",")(2).split("=")(1)
+      if (length >= 2) {
+        database = line.split("\t")(0).split(",")(0).split("=")(1)
+        table = line.split("\t")(0).split(",")(1).split("=")(1)
+        evenType = line.split("\t")(0).split(",")(2).split("=")(1)
       }
 
       //evenType.equals("INSERT")&&
-      if (table.contains("loan_order")){
+      if (table.contains("loan_order")) {
         //values
-        builder.append(evenType+",")
-        for(ele <-line.split("\t")){
-          if(!ele.contains("eventType")&&ele.toString.split(",").length>1){
-            if(ele.toString().split(",").length>1){
-              if(ele.toString().split(",")(0).split("=").length==2){
+        builder.append(evenType + ",")
+        for (ele <- line.split("\t")) {
+          if (!ele.contains("eventType") && ele.toString.split(",").length > 1) {
+            if (ele.toString().split(",").length > 1) {
+              if (ele.toString().split(",")(0).split("=").length == 2) {
                 builder.append(ele.toString().split(",")(0).split("=")(1))
                 builder.append(",")
               }
@@ -79,7 +80,7 @@ object BinLogUpdateToHiveLoan {
 
     })
 
-    val sqls2=sqls.filter(sql=>sql.length>1)
+    val sqls2 = sqls.filter(sql => sql.length > 1)
 
     //sqls2.print()
 
@@ -90,10 +91,12 @@ object BinLogUpdateToHiveLoan {
 
 
   def main(args: Array[String]) = {
-    if(args.length>0)
+    if (args.length > 0)
       path = args(0)
-    var checkpointDirectory="/tmp/"+path+"/test_BinLogUpdate/checkpoint"
-    val ssc = StreamingContext.getOrCreate(checkpointDirectory, () => {functionToCreateContext(checkpointDirectory)})
+    var checkpointDirectory = "/tmp/" + path + "/test_BinLogUpdate/checkpoint"
+    val ssc = StreamingContext.getOrCreate(checkpointDirectory, () => {
+      functionToCreateContext(checkpointDirectory)
+    })
     ssc.start()
     ssc.awaitTermination()
 
